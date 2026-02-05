@@ -75,7 +75,7 @@
           isToday ? "shift-calendar__cell--today" : ""
         } ${isOutside ? "shift-calendar__cell--outside" : ""}">
           <div class="shift-calendar__date">${date.getDate()}</div>
-          <div class="shift-calendar__label">${isOn ? "ON" : "OFF"}</div>
+          <div class="shift-calendar__label">${isOn ? "Daniel" : "Michael"}</div>
           <div class="shift-calendar__hours">${isOn ? "12h shift" : "Rest"}</div>
         </div>`
       );
