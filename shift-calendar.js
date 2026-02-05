@@ -51,6 +51,7 @@
     
     // Buttons
     modalActions: document.getElementById('modalActions'),
+    formActions: document.getElementById('formActions'),
     closeModalBtn: document.getElementById('closeModalBtn'),
     addVacationBtn: document.getElementById('addVacationBtn'),
     deleteVacationBtn: document.getElementById('deleteVacationBtn'),
@@ -500,7 +501,8 @@
 
     // Hide form initially
     elements.vacationFormSection.style.display = 'none';
-    elements.modalActions.style.display = 'block';
+    elements.modalActions.style.display = 'flex';
+    elements.formActions.style.display = 'none';
 
     // Show modal
     elements.modalOverlay.classList.add('modal-overlay--visible');
@@ -521,7 +523,8 @@
     elements.vacationForm.reset();
     state.editingVacationId = null;
     elements.vacationFormSection.style.display = 'none';
-    elements.modalActions.style.display = 'block';
+    elements.modalActions.style.display = 'flex';
+    elements.formActions.style.display = 'none';
   };
 
   /**
@@ -530,6 +533,7 @@
   const showVacationForm = (editVacation = null) => {
     elements.vacationFormSection.style.display = 'block';
     elements.modalActions.style.display = 'none';
+    elements.formActions.style.display = 'flex';
 
     if (editVacation) {
       // Edit mode
@@ -559,7 +563,8 @@
    */
   const hideVacationForm = () => {
     elements.vacationFormSection.style.display = 'none';
-    elements.modalActions.style.display = 'block';
+    elements.modalActions.style.display = 'flex';
+    elements.formActions.style.display = 'none';
     elements.vacationForm.reset();
     state.editingVacationId = null;
   };
