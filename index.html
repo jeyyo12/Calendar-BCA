@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JS ReadLine Test Runner</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    }
+    body {
+      margin: 20px;
+      display: grid;
+      gap: 16px;
+    }
+
+
+    /* Shift calendar (scoped) */
+    .shift-calendar {
+      --cal-bg: #ffffff;
+      --cal-border: rgba(0, 0, 0, 0.08);
+      --cal-muted: #8a8a8a;
+      --cal-text: #1f2937;
+      --cal-on: #0ea5e9;
+      --cal-on-bg: rgba(14, 165, 233, 0.12);
+      --cal-off-bg: rgba(148, 163, 184, 0.12);
+      --cal-today: #22c55e;
+      --cal-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+      background: var(--cal-bg);
+      border: 1px solid var(--cal-border);
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: var(--cal-shadow);
+      color: var(--cal-text);
+      display: grid;
+      gap: 14px;
+      max-width: 980px;
+      width: 100%;
+    }
+    .shift-calendar__header {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 12px;
+    }
+    .shift-calendar__title {
+      font-size: 20px;
+      font-weight: 600;
+      text-align: center;
+      letter-spacing: 0.2px;
+    }
+    .shift-calendar__nav {
+      display: inline-flex;
+      gap: 8px;
+    }
+    .shift-calendar__btn {
+      border: 1px solid var(--cal-border);
+      background: #f8fafc;
+      border-radius: 10px;
+      padding: 6px 10px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .shift-calendar__btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(15, 23, 42, 0.12);
+    }
+    .shift-calendar__legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 16px;
+      font-size: 13px;
+      color: var(--cal-muted);
+      justify-content: center;
+    }
+    .shift-calendar__legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .shift-calendar__dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      display: inline-block;
+    }
+    .shift-calendar__grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 8px;
+    }
+    .shift-calendar__weekday {
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      color: var(--cal-muted);
+      text-align: center;
+    }
+    .shift-calendar__cell {
+      border-radius: 12px;
+      min-height: 70px;
+      padding: 8px;
+      border: 1px solid transparent;
+      display: grid;
+      gap: 6px;
+      transition: background 0.2s ease, transform 0.2s ease, border 0.2s ease;
+      position: relative;
+      background: #f8fafc;
+    }
+    .shift-calendar__cell--off {
+      background: var(--cal-off-bg);
+      color: var(--cal-muted);
+    }
+    .shift-calendar__cell--on {
+      background: var(--cal-on-bg);
+      border: 1px solid rgba(14, 165, 233, 0.35);
+    }
+    .shift-calendar__cell--today {
+      border: 2px solid var(--cal-today);
+      background: rgba(34, 197, 94, 0.12);
+    }
+    .shift-calendar__cell:hover {
+      transform: translateY(-2px);
+    }
+    .shift-calendar__date {
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .shift-calendar__label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      opacity: 0.8;
+    }
+    .shift-calendar__hours {
+      font-size: 12px;
+    }
+    .shift-calendar__cell--outside {
+      opacity: 0.45;
+    }
+    .shift-calendar__swipe {
+      touch-action: pan-y;
+    }
+    @media (max-width: 720px) {
+      .shift-calendar {
+        padding: 14px;
+      }
+      .shift-calendar__header {
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+      .shift-calendar__title {
+        order: -1;
+      }
+      .shift-calendar__nav {
+        justify-content: center;
+      }
+      .shift-calendar__grid {
+        gap: 6px;
+      }
+      .shift-calendar__cell {
+        min-height: 62px;
+        padding: 6px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+
+  <section class="shift-calendar" aria-label="Shift calendar">
+    <div class="shift-calendar__header">
+      <div class="shift-calendar__nav">
+        <button type="button" class="shift-calendar__btn" id="shiftPrev" aria-label="Previous month">◀</button>
+        <button type="button" class="shift-calendar__btn" id="shiftToday" aria-label="Current month">Today</button>
+      </div>
+      <div class="shift-calendar__title" id="shiftTitle">Loading…</div>
+      <div class="shift-calendar__nav" style="justify-content: flex-end;">
+        <button type="button" class="shift-calendar__btn" id="shiftNext" aria-label="Next month">▶</button>
+      </div>
+    </div>
+
+    <div class="shift-calendar__legend">
+      <span><i class="shift-calendar__dot" style="background: var(--cal-on);"></i> ON (12h)</span>
+      <span><i class="shift-calendar__dot" style="background: #94a3b8;"></i> OFF</span>
+      <span><i class="shift-calendar__dot" style="background: var(--cal-today);"></i> Today</span>
+    </div>
+
+    <div class="shift-calendar__grid shift-calendar__swipe" id="shiftWeekdays"></div>
+    <div class="shift-calendar__grid shift-calendar__swipe" id="shiftGrid"></div>
+  </section>
+
+  <script src="runner.js"></script>
+  <script src="shift-calendar.js"></script>
+</body>
+</html>
