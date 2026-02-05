@@ -80,6 +80,126 @@
   };
 
   // ============================================
+  // MOBILE KEYBOARD FIX (Visual Viewport API)
+  // ============================================
+  
+  /**
+   * Initialize Visual Viewport listeners for mobile keyboard handling
+   * Updates CSS variables to adjust modal layout when keyboard is visible
+   */
+  const initializeViewportHandling = () => {
+    const root = document.documentElement;
+    let scrollPosition = 0;
+
+    /**
+     * Update CSS variables based on viewport size
+     */
+    const updateViewportVariables = () => {
+      // Set visual viewport height (handles mobile keyboard)
+      if (window.visualViewport) {
+        const vvh = window.visualViewport.height;
+        root.style.setProperty('--vvh', `${vvh}px`);
+
+        // Calculate keyboard height
+        const keyboardHeight = Math.max(
+          0,
+          window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop
+        );
+        root.style.setProperty('--kbd', `${keyboardHeight}px`);
+      } else {
+        // Fallback for browsers without Visual Viewport API
+        root.style.setProperty('--vvh', '100vh');
+        root.style.setProperty('--kbd', '0px');
+      }
+    };
+
+    // Initial setup
+    updateViewportVariables();
+
+    // Track viewport changes
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', updateViewportVariables);
+      window.visualViewport.addEventListener('scroll', updateViewportVariables);
+    }
+
+    // Fallback for browsers without visualViewport
+    window.addEventListener('resize', updateViewportVariables);
+
+    /**
+     * Scroll form input/textarea into view when focused
+     * Ensures it's visible above the keyboard
+     */
+    const handleFormInputFocus = (event) => {
+      const input = event.target;
+      
+      // Check if element is inside modal
+      if (!elements.dayModal.contains(input)) return;
+
+      // Use requestAnimationFrame for smooth scrolling
+      requestAnimationFrame(() => {
+        // Small delay to ensure keyboard animation has started
+        setTimeout(() => {
+          const modalBody = input.closest('.modal__body');
+          if (modalBody) {
+            // Scroll the input into the center of the modal body
+            const inputRect = input.getBoundingClientRect();
+            const containerRect = modalBody.getBoundingClientRect();
+            
+            // Check if input is already visible
+            const isVisible = inputRect.top >= containerRect.top && 
+                            inputRect.bottom <= containerRect.bottom;
+            
+            if (!isVisible) {
+              // Scroll to center if not visible
+              const shouldReduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+              input.scrollIntoView({
+                block: 'center',
+                behavior: shouldReduceMotion ? 'auto' : 'smooth'
+              });
+            }
+          }
+        }, 50);
+      });
+    };
+
+    // Attach focus listener to all form inputs and textareas
+    const setupFormInputHandlers = () => {
+      const inputs = document.querySelectorAll('input, textarea');
+      inputs.forEach(input => {
+        input.addEventListener('focus', handleFormInputFocus);
+      });
+    };
+
+    setupFormInputHandlers();
+
+    /**
+     * Lock body scroll when modal is open
+     */
+    const lockBodyScroll = () => {
+      scrollPosition = window.scrollY || document.documentElement.scrollTop;
+      document.body.classList.add('modal-open');
+      document.body.style.top = `-${scrollPosition}px`;
+    };
+
+    /**
+     * Unlock body scroll when modal is closed
+     */
+    const unlockBodyScroll = () => {
+      document.body.classList.remove('modal-open');
+      document.body.style.top = '';
+      window.scrollTo(0, scrollPosition);
+    };
+
+    return {
+      lockBodyScroll,
+      unlockBodyScroll,
+      updateViewportVariables,
+    };
+  };
+
+  const viewportHandler = initializeViewportHandling();
+
+  // ============================================
   // DATE UTILITIES
   // ============================================
   
@@ -508,6 +628,10 @@
     elements.modalOverlay.classList.add('modal-overlay--visible');
     elements.dayModal.classList.add('modal--visible');
     
+    // Apply mobile fixes
+    viewportHandler.lockBodyScroll();
+    viewportHandler.updateViewportVariables();
+    
     // Focus first button
     setTimeout(() => elements.closeModalBtn.focus(), 100);
   };
@@ -525,6 +649,9 @@
     elements.vacationFormSection.style.display = 'none';
     elements.modalActions.style.display = 'flex';
     elements.formActions.style.display = 'none';
+    
+    // Restore body scroll
+    viewportHandler.unlockBodyScroll();
   };
 
   /**

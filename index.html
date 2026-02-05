@@ -77,6 +77,10 @@
       /* Z-index */
       --z-modal: 1000;
       --z-overlay: 999;
+      
+      /* Mobile keyboard fix - Visual Viewport API */
+      --vvh: 100vh;
+      --kbd: 0px;
     }
     
     @media (prefers-color-scheme: dark) {
@@ -128,6 +132,13 @@
       justify-content: center;
       align-items: flex-start;
       padding-top: var(--space-6);
+    }
+    
+    /* Lock body scroll when modal is open */
+    body.modal-open {
+      overflow: hidden;
+      position: fixed;
+      width: 100%;
     }
     
     @media (max-width: 640px) {
@@ -397,7 +408,7 @@
       bottom: 0;
       left: 0;
       right: 0;
-      max-height: 90vh;
+      max-height: calc(var(--vvh, 100vh) - 16px);
       background: var(--color-surface);
       border-radius: var(--radius-xl) var(--radius-xl) 0 0;
       z-index: var(--z-modal);
@@ -421,7 +432,7 @@
         transform: translate(-50%, 100vh);
         border-radius: var(--radius-xl);
         max-width: 500px;
-        max-height: 80vh;
+        max-height: calc(var(--vvh, 100vh) * 0.8);
       }
       
       .modal--visible {
@@ -449,7 +460,9 @@
     
     .modal__body {
       padding: var(--space-5);
+      padding-bottom: calc(var(--kbd, 0px) + env(safe-area-inset-bottom, 16px) + var(--space-4));
       overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
       flex: 1;
     }
     
@@ -472,11 +485,17 @@
     
     .modal__actions {
       padding: var(--space-4) var(--space-5);
+      padding-bottom: calc(var(--kbd, 0px) + env(safe-area-inset-bottom, 8px));
       border-top: 1px solid var(--color-border-light);
       display: flex;
       gap: var(--space-3);
       flex-shrink: 0;
-      background: var(--color-bg);
+      background: var(--color-surface);
+      position: sticky;
+      bottom: 0;
+      z-index: 10;
+      box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
+      backdrop-filter: blur(8px);
     }
     
     /* Vacation info display */
@@ -548,6 +567,13 @@
       min-height: 80px;
       resize: vertical;
       font-family: var(--font-sans);
+    }
+    
+    /* Ensure last form group has extra bottom spacing on mobile */
+    @media (max-width: 640px) {
+      .modal__section:last-of-type .form-group:last-child {
+        margin-bottom: var(--space-5);
+      }
     }
     
     .form-row {
