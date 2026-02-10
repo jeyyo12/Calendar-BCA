@@ -22,6 +22,7 @@
     monthTitle: document.getElementById('monthTitle'),
     weekdaysContainer: document.getElementById('weekdaysContainer'),
     calendarGrid: document.getElementById('calendarGrid'),
+    calendarContainer: document.querySelector('.calendar-container'),
     prevMonth: document.getElementById('prevMonth'),
     nextMonth: document.getElementById('nextMonth'),
     todayBtn: document.getElementById('todayBtn'),
@@ -84,96 +85,140 @@
   // ============================================
   
   /**
-   * Initialize Visual Viewport listeners for mobile keyboard handling
-   * Updates CSS variables to adjust modal layout when keyboard is visible
+   * Robust mobile keyboard handling for vacation modal
+   * Ensures form inputs remain visible when keyboard appears
+   * Works on iOS Safari and Android Chrome
    */
   const initializeViewportHandling = () => {
     const root = document.documentElement;
     let scrollPosition = 0;
+    let previousInnerHeight = window.innerHeight;
+    let viewportListenersActive = false;
+    
+    // Track if animations should be reduced
+    const prefersReducedMotion = () => 
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     /**
-     * Update CSS variables based on viewport size
+     * Update CSS variables based on Visual Viewport API
+     * Handles keyboard appearance on mobile devices
      */
     const updateViewportVariables = () => {
-      // Set visual viewport height (handles mobile keyboard)
       if (window.visualViewport) {
-        const vvh = window.visualViewport.height;
-        root.style.setProperty('--vvh', `${vvh}px`);
-
-        // Calculate keyboard height
-        const keyboardHeight = Math.max(
-          0,
-          window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop
-        );
+        // Use Visual Viewport API (iOS 13+, Android Chrome 70+)
+        const vvH = window.visualViewport.height;
+        const vvTop = window.visualViewport.offsetTop;
+        
+        // Set viewport height
+        root.style.setProperty('--vvh', `${vvH}px`);
+        
+        // Calculate keyboard height: innerHeight - (visual viewport height + offset)
+        const keyboardHeight = Math.max(0, window.innerHeight - (vvH + vvTop));
         root.style.setProperty('--kbd', `${keyboardHeight}px`);
       } else {
-        // Fallback for browsers without Visual Viewport API
-        root.style.setProperty('--vvh', '100vh');
-        root.style.setProperty('--kbd', '0px');
+        // Fallback for older browsers
+        // Estimate keyboard by comparing innerHeight changes
+        const currentHeight = window.innerHeight;
+        const heightDifference = Math.max(0, previousInnerHeight - currentHeight);
+        
+        root.style.setProperty('--vvh', `${currentHeight}px`);
+        root.style.setProperty('--kbd', `${heightDifference}px`);
+        
+        previousInnerHeight = currentHeight;
       }
     };
 
-    // Initial setup
-    updateViewportVariables();
-
-    // Track viewport changes
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener('resize', updateViewportVariables);
-      window.visualViewport.addEventListener('scroll', updateViewportVariables);
-    }
-
-    // Fallback for browsers without visualViewport
-    window.addEventListener('resize', updateViewportVariables);
-
     /**
-     * Scroll form input/textarea into view when focused
-     * Ensures it's visible above the keyboard
+     * Scroll focused input into view within modal content area
+     * Only scrolls the modal, not the background page
      */
     const handleFormInputFocus = (event) => {
       const input = event.target;
       
-      // Check if element is inside modal
+      // Only handle inputs/textareas inside the modal
       if (!elements.dayModal.contains(input)) return;
+      if (!input.matches('input, textarea')) return;
 
-      // Use requestAnimationFrame for smooth scrolling
+      // Use RAF + timeout to ensure keyboard has started animating
       requestAnimationFrame(() => {
-        // Small delay to ensure keyboard animation has started
         setTimeout(() => {
-          const modalBody = input.closest('.modal__body');
-          if (modalBody) {
-            // Scroll the input into the center of the modal body
-            const inputRect = input.getBoundingClientRect();
-            const containerRect = modalBody.getBoundingClientRect();
+          const modalBody = elements.dayModal.querySelector('.modal__body');
+          if (!modalBody) return;
+
+          const inputRect = input.getBoundingClientRect();
+          const containerRect = modalBody.getBoundingClientRect();
+          
+          // Calculate if input is fully visible in scrollable container
+          const inputTop = inputRect.top - containerRect.top + modalBody.scrollTop;
+          const inputBottom = inputTop + inputRect.height;
+          const visibleTop = modalBody.scrollTop;
+          const visibleBottom = visibleTop + containerRect.height;
+          
+          // Check if input needs scrolling
+          const isFullyVisible = inputTop >= visibleTop && inputBottom <= visibleBottom;
+          
+          if (!isFullyVisible) {
+            // Scroll container so input is centered in visible area
+            // This avoids scrolling the background page
+            const targetScroll = inputTop - (containerRect.height / 2) + (inputRect.height / 2);
             
-            // Check if input is already visible
-            const isVisible = inputRect.top >= containerRect.top && 
-                            inputRect.bottom <= containerRect.bottom;
-            
-            if (!isVisible) {
-              // Scroll to center if not visible
-              const shouldReduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-              input.scrollIntoView({
-                block: 'center',
-                behavior: shouldReduceMotion ? 'auto' : 'smooth'
+            if (modalBody.scrollTo && !prefersReducedMotion()) {
+              // Smooth scroll if supported and not reduced motion
+              modalBody.scrollTo({
+                top: Math.max(0, targetScroll),
+                behavior: 'smooth'
               });
+            } else {
+              // Instant scroll
+              modalBody.scrollTop = Math.max(0, targetScroll);
             }
           }
-        }, 50);
+        }, 60); // 60ms allows keyboard animation to start
       });
     };
-
-    // Attach focus listener to all form inputs and textareas
-    const setupFormInputHandlers = () => {
-      const inputs = document.querySelectorAll('input, textarea');
-      inputs.forEach(input => {
-        input.addEventListener('focus', handleFormInputFocus);
-      });
-    };
-
-    setupFormInputHandlers();
 
     /**
-     * Lock body scroll when modal is open
+     * Add viewport listeners when modal opens
+     */
+    const attachViewportListeners = () => {
+      if (viewportListenersActive) return;
+      
+      updateViewportVariables();
+      
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', updateViewportVariables);
+        window.visualViewport.addEventListener('scroll', updateViewportVariables);
+      }
+      
+      window.addEventListener('resize', updateViewportVariables);
+      document.addEventListener('focusin', handleFormInputFocus);
+      
+      viewportListenersActive = true;
+    };
+
+    /**
+     * Remove viewport listeners when modal closes
+     */
+    const detachViewportListeners = () => {
+      if (!viewportListenersActive) return;
+      
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', updateViewportVariables);
+        window.visualViewport.removeEventListener('scroll', updateViewportVariables);
+      }
+      
+      window.removeEventListener('resize', updateViewportVariables);
+      document.removeEventListener('focusin', handleFormInputFocus);
+      
+      // Reset CSS variables
+      root.style.setProperty('--vvh', '100vh');
+      root.style.setProperty('--kbd', '0px');
+      
+      viewportListenersActive = false;
+    };
+
+    /**
+     * Lock body scroll and save position
      */
     const lockBodyScroll = () => {
       scrollPosition = window.scrollY || document.documentElement.scrollTop;
@@ -182,7 +227,7 @@
     };
 
     /**
-     * Unlock body scroll when modal is closed
+     * Restore body scroll to saved position
      */
     const unlockBodyScroll = () => {
       document.body.classList.remove('modal-open');
@@ -190,9 +235,14 @@
       window.scrollTo(0, scrollPosition);
     };
 
+    // Initialize viewport height on load
+    updateViewportVariables();
+
     return {
       lockBodyScroll,
       unlockBodyScroll,
+      attachViewportListeners,
+      detachViewportListeners,
       updateViewportVariables,
     };
   };
@@ -628,9 +678,9 @@
     elements.modalOverlay.classList.add('modal-overlay--visible');
     elements.dayModal.classList.add('modal--visible');
     
-    // Apply mobile fixes
+    // Apply mobile keyboard fixes
     viewportHandler.lockBodyScroll();
-    viewportHandler.updateViewportVariables();
+    viewportHandler.attachViewportListeners();
     
     // Focus first button
     setTimeout(() => elements.closeModalBtn.focus(), 100);
@@ -650,7 +700,8 @@
     elements.modalActions.style.display = 'flex';
     elements.formActions.style.display = 'none';
     
-    // Restore body scroll
+    // Cleanup mobile keyboard listeners and restore scroll
+    viewportHandler.detachViewportListeners();
     viewportHandler.unlockBodyScroll();
   };
 
@@ -754,28 +805,70 @@
   // TOUCH GESTURES (for mobile swipe)
   // ============================================
 
-  let touchStartX = 0;
-  let touchEndX = 0;
+  const SWIPE_DISTANCE = 50;
+  const SWIPE_RESTRAINT = 30;
+  const SWIPE_DEBOUNCE_MS = 350;
 
-  const handleSwipe = () => {
-    const delta = touchEndX - touchStartX;
-    if (Math.abs(delta) < 50) return; // Minimum swipe distance
-    
-    if (delta < 0) {
+  let swipeStartX = 0;
+  let swipeStartY = 0;
+  let swipeEndX = 0;
+  let swipeEndY = 0;
+  let lastSwipeAt = 0;
+
+  const shouldHandleSwipe = (deltaX, deltaY) =>
+    Math.abs(deltaX) > SWIPE_DISTANCE && Math.abs(deltaY) < SWIPE_RESTRAINT;
+
+  const tryHandleSwipe = (deltaX, deltaY) => {
+    if (!shouldHandleSwipe(deltaX, deltaY)) return;
+    if (elements.dayModal.classList.contains('modal--visible')) return;
+
+    const now = Date.now();
+    if (now - lastSwipeAt < SWIPE_DEBOUNCE_MS) return;
+    lastSwipeAt = now;
+
+    if (deltaX < 0) {
       changeMonth(1); // Swipe left = next month
     } else {
       changeMonth(-1); // Swipe right = prev month
     }
   };
 
-  elements.calendarGrid.addEventListener('touchstart', (e) => {
-    touchStartX = e.changedTouches[0].clientX;
-  }, { passive: true });
+  const onPointerDown = (event) => {
+    if (!event.isPrimary) return;
+    swipeStartX = event.clientX;
+    swipeStartY = event.clientY;
+  };
 
-  elements.calendarGrid.addEventListener('touchend', (e) => {
-    touchEndX = e.changedTouches[0].clientX;
-    handleSwipe();
-  }, { passive: true });
+  const onPointerUp = (event) => {
+    if (!event.isPrimary) return;
+    swipeEndX = event.clientX;
+    swipeEndY = event.clientY;
+    tryHandleSwipe(swipeEndX - swipeStartX, swipeEndY - swipeStartY);
+  };
+
+  const onTouchStart = (event) => {
+    const touch = event.changedTouches[0];
+    if (!touch) return;
+    swipeStartX = touch.clientX;
+    swipeStartY = touch.clientY;
+  };
+
+  const onTouchEnd = (event) => {
+    const touch = event.changedTouches[0];
+    if (!touch) return;
+    swipeEndX = touch.clientX;
+    swipeEndY = touch.clientY;
+    tryHandleSwipe(swipeEndX - swipeStartX, swipeEndY - swipeStartY);
+  };
+
+  if (window.PointerEvent) {
+    elements.calendarContainer.addEventListener('pointerdown', onPointerDown, { passive: true });
+    elements.calendarContainer.addEventListener('pointerup', onPointerUp, { passive: true });
+    elements.calendarContainer.addEventListener('pointercancel', onPointerUp, { passive: true });
+  } else {
+    elements.calendarContainer.addEventListener('touchstart', onTouchStart, { passive: true });
+    elements.calendarContainer.addEventListener('touchend', onTouchEnd, { passive: true });
+  }
 
   // ============================================
   // EVENT LISTENERS
